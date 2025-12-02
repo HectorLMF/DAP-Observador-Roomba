@@ -16,11 +16,13 @@ public class RoomView extends JPanel {
 
     private boolean placingCharger = false;
     private boolean placingObstacles = false;
+    private boolean placingCat = false;
 
     public interface RoomViewListener {
         void onChargerPlaced(Position p);
         void onObstacleToggled(Position p);
         void onCellClicked(Position p);
+        void onCatPlaced(Position p);
     }
 
     private RoomViewListener listener;
@@ -58,9 +60,6 @@ public class RoomView extends JPanel {
         if (!room.inBounds(p)) return;
 
         if (placingCharger && SwingUtilities.isLeftMouseButton(e)) {
-            // colocar cargador
-            // eliminar cargador anterior
-            // Room maneja setCharger
             room.setCharger(p, true);
             if (listener != null) listener.onChargerPlaced(p);
             placingCharger = false;
@@ -72,6 +71,15 @@ public class RoomView extends JPanel {
             room.setObstacle(p, !room.isObstacle(p));
             if (listener != null) listener.onObstacleToggled(p);
             repaint();
+            return;
+        }
+
+        if (placingCat && SwingUtilities.isLeftMouseButton(e)) {
+            if (!room.isObstacle(p)) {
+                if (listener != null) listener.onCatPlaced(p);
+                placingCat = false;
+                repaint();
+            }
             return;
         }
 
@@ -87,6 +95,7 @@ public class RoomView extends JPanel {
 
     public void setPlacingCharger(boolean val) { this.placingCharger = val; }
     public void setPlacingObstacles(boolean val) { this.placingObstacles = val; }
+    public void setPlacingCat(boolean val) { this.placingCat = val; }
 
     public void setRobotPosition(Position p) { this.robotPosition = p; repaint(); }
     public void setPath(List<Position> newPath) { this.path = newPath != null ? new ArrayList<>(newPath) : new ArrayList<>(); repaint(); }
@@ -102,25 +111,53 @@ public class RoomView extends JPanel {
                 int sx = x * cellSize;
                 int sy = y * cellSize;
                 Position p = new Position(x, y);
-                if (room.isObstacle(p)) {
+
+                boolean hasCat = room.hasCatAt(p);
+                boolean hasCharger = room.hasChargerAt(p);
+
+                if (room.isObstacle(p) && !hasCat && !hasCharger) {
                     g2.setColor(Color.DARK_GRAY);
+                    g2.fillRect(sx, sy, cellSize, cellSize);
+                } else if (hasCat) {
+                    g2.setColor(new Color(255, 248, 220));
+                    g2.fillRect(sx, sy, cellSize, cellSize);
+                } else if (hasCharger) {
+                    // Cargador - fondo amarillo brillante
+                    g2.setColor(new Color(255, 255, 150));
                     g2.fillRect(sx, sy, cellSize, cellSize);
                 } else if (room.hasCharger(p)) {
                     g2.setColor(Color.ORANGE);
                     g2.fillRect(sx, sy, cellSize, cellSize);
                 } else if (room.isCleaned(p)) {
-                    g2.setColor(new Color(144,238,144)); // light green
+                    g2.setColor(new Color(144, 238, 144));
                     g2.fillRect(sx, sy, cellSize, cellSize);
                 } else {
-                    g2.setColor(Color.WHITE);
+                    g2.setColor(new Color(139, 90, 43));
                     g2.fillRect(sx, sy, cellSize, cellSize);
                 }
                 g2.setColor(Color.BLACK);
                 g2.drawRect(sx, sy, cellSize, cellSize);
+
+                if (hasCat) {
+                    g2.setFont(new Font("Segoe UI Emoji", Font.PLAIN, cellSize - 8));
+                    FontMetrics fm = g2.getFontMetrics();
+                    String catEmoji = "🐱";
+                    int textX = sx + (cellSize - fm.stringWidth(catEmoji)) / 2;
+                    int textY = sy + ((cellSize - fm.getHeight()) / 2) + fm.getAscent();
+                    g2.drawString(catEmoji, textX, textY);
+                }
+
+                if (hasCharger) {
+                    g2.setFont(new Font("Segoe UI Emoji", Font.PLAIN, cellSize - 6));
+                    FontMetrics fm = g2.getFontMetrics();
+                    String chargerEmoji = "⚡";
+                    int textX = sx + (cellSize - fm.stringWidth(chargerEmoji)) / 2;
+                    int textY = sy + ((cellSize - fm.getHeight()) / 2) + fm.getAscent();
+                    g2.drawString(chargerEmoji, textX, textY);
+                }
             }
         }
 
-        // dibujar ruta
         if (path != null && !path.isEmpty()) {
             g2.setColor(new Color(51, 51, 255, 80));
             for (Position pp : path) {
@@ -130,7 +167,6 @@ public class RoomView extends JPanel {
             }
         }
 
-        // dibujar robot
         if (robotPosition != null && room.inBounds(robotPosition)) {
             int cx = robotPosition.x * cellSize + cellSize / 2;
             int cy = robotPosition.y * cellSize + cellSize / 2;
@@ -144,3 +180,4 @@ public class RoomView extends JPanel {
         g2.dispose();
     }
 }
+

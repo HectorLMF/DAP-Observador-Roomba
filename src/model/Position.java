@@ -29,5 +29,12 @@ public class Position {
     public String toString() {
         return "(" + x + "," + y + ")";
     }
+
+    /**
+     * Calcula la distancia Manhattan entre esta posición y otra.
+     */
+    public int manhattanDistance(Position other) {
+        return Math.abs(this.x - other.x) + Math.abs(this.y - other.y);
+    }
 }
 

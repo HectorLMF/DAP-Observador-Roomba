@@ -36,7 +36,7 @@ public class SimulatedProximitySensor implements Subject {
     /**
      * Escanea la habitación desde la posición origen y notifica una lectura.
      */
-    public void scan(Room room, Position origin) {
+    public SensorReading scan(Room room, Position origin) {
         // Simulacion simple: dependiendo del type comprobamos en la direccion
         int dx = 0, dy = 0;
         switch (type) {
@@ -55,6 +55,18 @@ public class SimulatedProximitySensor implements Subject {
 
         SensorReading reading = new SensorReading(type, found ? foundDist : -1, found, origin);
         notifyObservers(reading);
+        return reading;
+    }
+
+    public int getObserverCount() { return observers.size(); }
+
+    public String getObserversInfo() {
+        if (observers.isEmpty()) return "(none)";
+        StringBuilder sb = new StringBuilder();
+        for (observer.Observer o : observers) {
+            sb.append(o.getClass().getSimpleName()).append(" ");
+        }
+        return sb.toString().trim();
     }
 }
 

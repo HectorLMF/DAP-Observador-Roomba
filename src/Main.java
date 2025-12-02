@@ -1,15 +1,19 @@
-//TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
-// click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
+/**
+ * Punto de entrada principal del simulador Roomba.
+ * Implementa el patrón Observer y Strategy.
+ */
 public class Main {
     public static void main(String[] args) {
-        //TIP Press <shortcut actionId="ShowIntentionActions"/> with your caret at the highlighted text
-        // to see how IntelliJ IDEA suggests fixing it.
-        System.out.printf("Hello and welcome!");
+        System.out.println("=== Iniciando Simulador Roomba ===");
+        System.out.println("Patrón Observer + Strategy implementados");
+        System.out.println("Características:");
+        System.out.println("  - Roomba se mueve automáticamente");
+        System.out.println("  - Celdas sucias (marrón) → limpias (verde)");
+        System.out.println("  - Gatos que se mueven y ensucian");
+        System.out.println("  - 3 Observadores activos: Logger, Statistics, Alerts");
+        System.out.println();
 
-        for (int i = 1; i <= 5; i++) {
-            //TIP Press <shortcut actionId="Debug"/> to start debugging your code. We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint
-            // for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>.
-            System.out.println("i = " + i);
-        }
+        // Ejecutar la GUI
+        new gui.MainApp();
     }
 }
