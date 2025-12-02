@@ -25,6 +25,8 @@ public class MainApp {
     private JLabel observersLabel;
     private JLabel robotStateLabel;
     private JSpinner batteryCapacitySpinner;
+    private JTextPane logTextPane;
+    private int turnCounter = 0;
 
     // Observadores del patrón Observer
     private RobotEventLogger eventLogger;
@@ -114,8 +116,34 @@ public class MainApp {
         roomView = new RoomView(20, 20, 25);
         JScrollPane scroll = new JScrollPane(roomView);
 
+        // Panel de logs del Observer
+        JPanel logPanel = new JPanel(new BorderLayout());
+        logPanel.setBorder(BorderFactory.createTitledBorder("Logs del Patrón Observer"));
+        logTextPane = new JTextPane();
+        logTextPane.setEditable(false);
+        logTextPane.setFont(new Font("Monospaced", Font.PLAIN, 11));
+
+        // Establecer tamaño fijo de 10 líneas
+        FontMetrics fm = logTextPane.getFontMetrics(logTextPane.getFont());
+        int lineHeight = fm.getHeight();
+        int preferredHeight = lineHeight * 10 + 10; // 10 líneas + padding
+        logTextPane.setPreferredSize(new Dimension(600, preferredHeight));
+
+        JScrollPane logScroll = new JScrollPane(logTextPane);
+        logScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        logScroll.setPreferredSize(new Dimension(600, preferredHeight + 20));
+        logPanel.add(logScroll, BorderLayout.CENTER);
+
+        JButton clearLogsBtn = new JButton("Limpiar Logs");
+        clearLogsBtn.addActionListener(e -> {
+            logTextPane.setText("");
+            turnCounter = 0;
+        });
+        logPanel.add(clearLogsBtn, BorderLayout.SOUTH);
+
         frame.add(scroll, BorderLayout.CENTER);
         frame.add(controls, BorderLayout.EAST);
+        frame.add(logPanel, BorderLayout.SOUTH);
 
         generate.addActionListener((ActionEvent e) -> {
             int w = Integer.parseInt(dimX.getText());
@@ -139,6 +167,26 @@ public class MainApp {
             manager.getRobot().addRobotObserver(eventLogger);
             manager.getRobot().addRobotObserver(statsObserver);
             manager.getRobot().addRobotObserver(alertObserver);
+
+            // Observador especial para la GUI que registra en formato específico
+            observer.RobotObserver guiLogObserver = event -> {
+                String timestamp = getCurrentTime();
+                String sensorOrigin = determineSensorOrigin(event);
+                String signalType = event.getType().name();
+                String currentState = manager.getRobot().getCurrentState() != null ?
+                    manager.getRobot().getCurrentState().getClass().getSimpleName() : "NULL";
+                String nextState = determineNextState(event);
+
+                String logEntry = String.format("[%03d] - [%s] - [%s] - [%s] - %s -> %s\n",
+                    ++turnCounter, timestamp, sensorOrigin, signalType, currentState, nextState);
+
+                Color color = getColorForState(currentState, event.getType());
+
+                SwingUtilities.invokeLater(() -> {
+                    appendColoredLog(logEntry, color);
+                });
+            };
+            manager.getRobot().addRobotObserver(guiLogObserver);
 
             System.out.println("=== Observadores registrados ===");
             System.out.println("Total: " + manager.getRobot().getRobotObserverCount());
@@ -323,6 +371,91 @@ public class MainApp {
         if (r == null) return "-";
         return r.getType().name() + ": dist=" + r.getDistance() +
                " obstacle=" + r.isObstacleDetected();
+    }
+
+    private String getCurrentTime() {
+        java.time.LocalTime now = java.time.LocalTime.now();
+        return String.format("%02d:%02d", now.getHour(), now.getMinute());
+    }
+
+    private String determineSensorOrigin(observer.RobotEvent event) {
+        switch (event.getType()) {
+            case BATTERY_LOW:
+                return "BATTERY_SENSOR";
+            case OBSTACLE_DETECTED:
+                return "PROXIMITY_SENSOR";
+            case POSITION_CHANGED:
+                return "MOVEMENT_SYSTEM";
+            case STATE_CHANGED:
+                return "STATE_MACHINE";
+            case PATH_CALCULATED:
+                return "PATHFINDING";
+            case CLEANING_COMPLETED:
+                return "CLEANING_SYSTEM";
+            case RETURNED_TO_CHARGER:
+                return "NAVIGATION";
+            default:
+                return "ROBOT_SYSTEM";
+        }
+    }
+
+    private String determineNextState(observer.RobotEvent event) {
+        if (event.getType() == observer.RobotEvent.Type.STATE_CHANGED) {
+            return event.getData() != null ? event.getData().toString() : "UNKNOWN";
+        }
+
+        // Predecir siguiente estado basado en el evento
+        switch (event.getType()) {
+            case BATTERY_LOW:
+                return "ReturningState";
+            case POSITION_CHANGED:
+                return "CleaningState (continúa)";
+            case OBSTACLE_DETECTED:
+                return "RecalculatingState";
+            case PATH_CALCULATED:
+                return "MovingState";
+            case CLEANING_COMPLETED:
+                return "IdleState";
+            case RETURNED_TO_CHARGER:
+                return "ChargingState";
+            default:
+                return "(sin cambio)";
+        }
+    }
+
+    private Color getColorForState(String currentState, observer.RobotEvent.Type eventType) {
+        // Verificar si es un evento de "no hay camino"
+        if (eventType == observer.RobotEvent.Type.PATH_CALCULATED && currentState.contains("Recalculating")) {
+            return Color.RED; // Rojo para "No se encuentra camino"
+        }
+
+        // Colores según el estado actual
+        if (currentState.contains("CleaningState")) {
+            return new Color(0, 150, 0); // Verde oscuro
+        } else if (currentState.contains("RecalculatingState")) {
+            return new Color(138, 43, 226); // Violeta (BlueViolet)
+        } else if (currentState.contains("ReturningState")) {
+            return new Color(218, 165, 32); // Amarillo dorado (Goldenrod)
+        } else if (currentState.contains("ChargingState")) {
+            return new Color(255, 140, 0); // Naranja (DarkOrange)
+        } else if (currentState.contains("IdleState")) {
+            return Color.GRAY; // Gris para idle
+        }
+
+        // Color por defecto
+        return Color.BLACK;
+    }
+
+    private void appendColoredLog(String text, Color color) {
+        try {
+            javax.swing.text.StyledDocument doc = logTextPane.getStyledDocument();
+            javax.swing.text.Style style = logTextPane.addStyle("ColorStyle", null);
+            javax.swing.text.StyleConstants.setForeground(style, color);
+            doc.insertString(doc.getLength(), text, style);
+            logTextPane.setCaretPosition(doc.getLength());
+        } catch (javax.swing.text.BadLocationException e) {
+            e.printStackTrace();
+        }
     }
 
     public static void main(String[] args) {
